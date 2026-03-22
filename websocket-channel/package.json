@@ -1,0 +1,20 @@
+{
+  "name": "websocket-channel",
+  "version": "1.0.0",
+  "description": "A simplified WebSocket-based channel for OpenClaw",
+  "license": "MIT",
+  "author": "nixgnehc",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch index.ts"
+  },
+  "dependencies": {
+    "ws": "^8.19.0"
+  },
+  "openclaw": {
+    "extensions": [
+      "./index.ts"
+    ]
+  }
+}

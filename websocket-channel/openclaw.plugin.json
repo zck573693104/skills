@@ -1,0 +1,73 @@
+{
+  "id": "websocket-channel",
+  "name": "WebSocket Channel",
+  "version": "1.0.0",
+  "channels": ["websocket-channel"],
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "channels": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "websocket-channel": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "config": {
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "wsUrl": {
+                    "type": "string"
+                  },
+                  "groupPolicy": {
+                    "type": "string",
+                    "enum": ["pairing", "allowlist", "open", "disabled"]
+                  }
+                },
+                "required": ["wsUrl"]
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+
+  "uiHints": {
+    "channels": {
+      "label": "Channels"
+    },
+    "channels.websocket-channel": {
+      "label": "WebSocket Channel"
+    },
+    "channels.websocket-channel.enabled": {
+      "label": "Enabled",
+      "description": "Enable WebSocket Channel"
+    },
+    "channels.websocket-channel.config": {
+      "label": "Configuration",
+      "description": "WebSocket connection configuration"
+    },
+    "channels.websocket-channel.config.wsUrl": {
+      "label": "WebSocket URL",
+      "placeholder": "ws://localhost:8765",
+      "help": "WebSocket server URL (e.g., ws://localhost:8765)"
+    },
+    "channels.websocket-channel.config.enabled": {
+      "label": "Enabled",
+      "description": "Enable this configuration"
+    },
+    "channels.websocket-channel.config.groupPolicy": {
+      "label": "Group Policy",
+      "description": "Message policy for group chats"
+    }
+  }
+}
