@@ -170,9 +170,9 @@ def get_current_time(_: str = "") -> str:
 
 # 方案 A：使用标准 ChatOpenAI（推荐）
 llm = ChatOpenAI(
-    model="MiniMax-M2.5",
-    api_key="sk-NDY0LTIxMjcwOTMzNzQyLTE3NzQ1MzE4NDAxMjg=",
-    base_url="https://api.scnet.cn/api/llm/v1",
+    model="deepseek-reasoner",
+    api_key="os.getenv('AI_KEY')",
+    base_url="https://api.heabl.top/v1",
     temperature=0.7,
     # ⭐ 关键：添加自定义请求头
     # default_headers={

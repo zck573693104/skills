@@ -26,22 +26,22 @@ python3 skills/baidu-search/scripts/search.py '<JSON>'
 
 ```bash
 # Basic search
-python3 scripts/search.py '{"query":"人工智能"}'
+python scripts/search.py '{"query":"人工智能"}'
 
 # Freshness first format "YYYY-MM-DDtoYYYY-MM-DD" example
-python3 scripts/search.py '{
+python scripts/search.py '{
   "query":"最新新闻",
   "freshness":"2025-09-01to2025-09-08"
 }'
 
 # Freshness second format pd、pw、pm、py example
-python3 scripts/search.py '{
+python scripts/search.py '{
   "query":"最新新闻",
   "freshness":"pd"
 }'
 
 # set count, the number of results to return
-python3 scripts/search.py '{
+python scripts/search.py '{
   "query":"旅游景点",
   "count": 20,
 }'

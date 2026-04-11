@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>kcz · AI Skill Engine</title>
+<style>
+/* ═══════════════════════════════════════
+   基础 & 字体
+═══════════════════════════════════════ */
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@300;400;600;700&display=swap');
+
+:root {
+  --bg:        #050d1a;
+  --bg2:       #0a1628;
+  --bg3:       #0d1f38;
+  --border:    #1a3a5c;
+  --cyan:      #00d4ff;
+  --cyan2:     #00a8cc;
+  --green:     #00ff88;
+  --yellow:    #ffd700;
+  --red:       #ff4466;
+  --text:      #c8e0f4;
+  --text-dim:  #5a7a9a;
+  --glow:      0 0 12px #00d4ff55;
+  --glow-g:    0 0 10px #00ff8844;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Exo 2', sans-serif;
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 背景网格动效 */
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0;
+  background-image:
+    linear-gradient(rgba(0,212,255,.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,212,255,.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+  animation: grid-drift 20s linear infinite;
+  pointer-events: none;
+}
+@keyframes grid-drift { to { background-position: 40px 40px; } }
+
+/* ═══════════════════════════════════════
+   Header
+═══════════════════════════════════════ */
+header {
+  position: relative; z-index: 10;
+  flex-shrink: 0;
+  display: flex; align-items: center; gap: 16px;
+  padding: 14px 24px;
+  background: linear-gradient(90deg, #020c1b 0%, #061428 50%, #020c1b 100%);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 2px 20px #00d4ff22;
+}
+
+.logo {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 22px;
+  color: var(--cyan);
+  text-shadow: var(--glow);
+  letter-spacing: 3px;
+}
+.logo span { color: var(--green); }
+
+.tagline {
+  font-size: 11px; color: var(--text-dim);
+  letter-spacing: 2px; text-transform: uppercase;
+}
+
+.header-status {
+  margin-left: auto;
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; color: var(--text-dim);
+}
+.status-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--green);
+  box-shadow: var(--glow-g);
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%,100% { opacity: 1; } 50% { opacity: .3; }
+}
+
+/* ═══════════════════════════════════════
+   Layout
+═══════════════════════════════════════ */
+.layout {
+  position: relative; z-index: 1;
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 220px 1fr 320px;
+  grid-template-rows: 1fr;
+  gap: 0;
+  overflow: hidden;
+}
+
+/* ═══════════════════════════════════════
+   Panel 通用
+═══════════════════════════════════════ */
+.panel {
+  display: flex; flex-direction: column;
+  border-right: 1px solid var(--border);
+  background: var(--bg2);
+  overflow: hidden;
+  min-height: 0;
+}
+.panel:last-child { border-right: none; }
+
+.panel-header {
+  padding: 10px 16px;
+  background: var(--bg3);
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  font-family: 'Share Tech Mono', monospace;
+  color: var(--cyan);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  display: flex; align-items: center; gap: 8px;
+  flex-shrink: 0;
+}
+.panel-header::before {
+  content: '';
+  display: inline-block;
+  width: 3px; height: 14px;
+  background: var(--cyan);
+  box-shadow: var(--glow);
+  border-radius: 2px;
+}
+
+/* ═══════════════════════════════════════
+   左侧：技能列表
+═══════════════════════════════════════ */
+#skills-panel .panel-content {
+  flex: 1; overflow-y: auto; padding: 12px 8px;
+}
+
+.skill-card {
+  padding: 10px 12px;
+  margin-bottom: 6px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  cursor: pointer;
+  transition: all .2s;
+  position: relative;
+  overflow: hidden;
+}
+.skill-card::before {
+  content: '';
+  position: absolute; left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: var(--cyan);
+  opacity: 0;
+  transition: opacity .2s;
+}
+.skill-card:hover { border-color: var(--cyan2); background: #0a1e38; }
+.skill-card:hover::before { opacity: 1; }
+
+.skill-name {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 12px; color: var(--cyan);
+  margin-bottom: 4px;
+}
+.skill-name::before { content: '@'; color: var(--text-dim); }
+
+.skill-desc {
+  font-size: 11px; color: var(--text-dim);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ═══════════════════════════════════════
+   中间：对话区
+═══════════════════════════════════════ */
+#chat-panel {
+  border-right: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+  min-height: 0;        /* 防止 flex 子项撑破父容器 */
+  overflow: hidden;
+}
+
+#messages {
+  flex: 1;
+  min-height: 0;        /* 关键：允许 flex:1 在有限高度内滚动 */
+  overflow-y: auto;
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* 滚动条 */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--cyan2); }
+
+/* 消息气泡 */
+.msg {
+  max-width: 85%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  animation: msg-in .25s ease-out;
+}
+@keyframes msg-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.msg.user { align-self: flex-end; align-items: flex-end; }
+.msg.bot  { align-self: flex-start; align-items: flex-start; }
+
+.msg-label {
+  font-size: 10px; color: var(--text-dim);
+  font-family: 'Share Tech Mono', monospace;
+  letter-spacing: 1px;
+}
+
+.msg-bubble {
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.7;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.msg.user .msg-bubble {
+  white-space: pre-wrap;   /* 用户输入保留换行 */
+}
+
+.msg.user .msg-bubble {
+  background: linear-gradient(135deg, #0d2a4a, #0a1e38);
+  border: 1px solid var(--cyan2);
+  color: var(--text);
+  box-shadow: var(--glow);
+}
+
+.msg.bot .msg-bubble {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+/* 流式打字中的光标 */
+.typing-cursor::after {
+  content: '▋';
+  color: var(--cyan);
+  animation: blink .7s step-end infinite;
+}
+@keyframes blink { 50% { opacity: 0; } }
+
+/* ═══════════════════════════════════════
+   富文本渲染样式
+═══════════════════════════════════════ */
+
+/* 数据表格 */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 10px 0;
+  font-size: 12px;
+  font-family: 'Share Tech Mono', monospace;
+}
+.data-table th {
+  background: #0a2040;
+  color: var(--cyan);
+  padding: 7px 12px;
+  text-align: left;
+  font-weight: 600;
+  border-bottom: 1px solid var(--cyan2);
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+.data-table td {
+  padding: 7px 12px;
+  border-bottom: 1px solid #0d1f38;
+  color: var(--text);
+}
+.data-table tr:hover td { background: #0a1e38; }
+.data-table tr:last-child td { border-bottom: none; }
+
+/* 键值网格 */
+.kv-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0;
+}
+.kv-item {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  background: #081525;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 5px 10px;
+  min-width: 140px;
+}
+.kv-key {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  color: var(--cyan);
+  letter-spacing: .5px;
+  white-space: nowrap;
+}
+.kv-val {
+  font-size: 13px;
+  color: var(--green);
+  font-weight: 600;
+}
+
+/* 分段标题 */
+.data-section {
+  margin: 12px 0;
+}
+.data-section-title {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px;
+  color: var(--yellow);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  padding: 4px 0 6px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 8px;
+}
+
+/* 数据列表 */
+.data-list {
+  margin: 6px 0 6px 16px;
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+/* Markdown 样式 */
+.md-h2 { font-size: 16px; color: var(--cyan); margin: 12px 0 6px; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
+.md-h3 { font-size: 14px; color: var(--cyan2); margin: 10px 0 5px; }
+.md-h4 { font-size: 13px; color: var(--yellow); margin: 8px 0 4px; }
+.md-hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
+.md-list { margin: 6px 0 6px 18px; line-height: 1.8; font-size: 13px; }
+.md-list li { margin-bottom: 3px; }
+.code-block {
+  background: #030b17;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--cyan);
+  border-radius: 4px;
+  padding: 10px 14px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px;
+  color: #8ecaf0;
+  white-space: pre-wrap;
+  margin: 8px 0;
+  overflow-x: auto;
+}
+.inline-code {
+  background: #0a1e38;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px;
+  color: var(--cyan);
+}
+
+/* 引用文档区 */
+.ref-footer {
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+
+  display: inline-block;
+  padding: 2px 8px;
+  margin: 2px;
+  border-radius: 3px;
+  background: #0a2a1a;
+  border: 1px solid #00ff8844;
+  color: var(--green);
+  font-size: 10px;
+  font-family: 'Share Tech Mono', monospace;
+}
+
+/* 空状态 */
+.empty-hint {
+  margin: auto;
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+.empty-hint .big { font-size: 40px; margin-bottom: 12px; }
+.empty-hint p { margin-bottom: 6px; line-height: 1.6; }
+
+/* 输入框区域 */
+.input-area {
+  flex-shrink: 0;
+  padding: 14px 16px;
+  background: var(--bg3);
+  border-top: 1px solid var(--border);
+  display: flex; gap: 10px; align-items: flex-end;
+}
+
+#user-input {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: 'Exo 2', sans-serif;
+  font-size: 13px;
+  padding: 10px 14px;
+  resize: none;
+  outline: none;
+  transition: border-color .2s, box-shadow .2s;
+  max-height: 120px;
+  min-height: 42px;
+}
+#user-input:focus {
+  border-color: var(--cyan2);
+  box-shadow: var(--glow);
+}
+#user-input::placeholder { color: var(--text-dim); }
+
+#send-btn {
+  background: linear-gradient(135deg, #00a8cc, #007799);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 20px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 13px;
+  cursor: pointer;
+  letter-spacing: 1px;
+  transition: all .2s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+#send-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #00d4ff, #009abc);
+  box-shadow: var(--glow);
+}
+#send-btn:disabled {
+  opacity: .4; cursor: not-allowed;
+}
+
+/* ═══════════════════════════════════════
+   右侧：日志面板
+═══════════════════════════════════════ */
+#log-panel {
+  background: #030b17;
+}
+
+#log-panel .panel-header {
+  justify-content: space-between;
+}
+
+#clear-logs {
+  font-size: 10px;
+  color: var(--text-dim);
+  background: none; border: 1px solid var(--border);
+  border-radius: 3px; padding: 2px 8px;
+  cursor: pointer; font-family: 'Share Tech Mono', monospace;
+  transition: all .15s;
+}
+#clear-logs:hover { color: var(--red); border-color: var(--red); }
+
+#log-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 12px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.log-line {
+  padding: 2px 0;
+  border-bottom: 1px solid #0a1628;
+  animation: log-in .15s ease-out;
+  word-break: break-all;
+}
+@keyframes log-in {
+  from { opacity: 0; background: #00d4ff11; }
+  to   { opacity: 1; background: transparent; }
+}
+
+/* 日志颜色规则 */
+.log-line.info    { color: var(--text-dim); }
+.log-line.success { color: var(--green); }
+.log-line.warn    { color: var(--yellow); }
+.log-line.error   { color: var(--red); }
+.log-line.action  { color: var(--cyan); }
+.log-line.skill   { color: #bb88ff; }
+.log-line.param   { color: #ffaa44; }
+.log-line.raw     { color: #4dbb7a; font-family: 'Share Tech Mono', monospace; font-size: 10px; opacity: .85; }
+
+/* 扫描线动效 */
+#log-panel::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+  opacity: 0;
+  animation: scanline 3s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes scanline {
+  0%   { top: 57px; opacity: 0; }
+  10%  { opacity: .6; }
+  90%  { opacity: .6; }
+  100% { top: 100vh; opacity: 0; }
+}
+
+/* ═══════════════════════════════════════
+   Processing overlay
+═══════════════════════════════════════ */
+.processing-bar {
+  height: 2px;
+  background: linear-gradient(90deg, var(--cyan), var(--green), var(--cyan));
+  background-size: 200% 100%;
+  animation: shimmer 1.2s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes shimmer { to { background-position: -200% 0; } }
+.processing-bar.hidden { display: none; }
+
+</style>
+</head>
+<body>
+
+<!-- ── Header ─────────────────────────────── -->
+<header>
+  <div>
+    <div class="logo">KC<span>Z</span></div>
+    <div class="tagline">AI Skill Engine · Progressive Disclosure</div>
+  </div>
+  <div class="header-status">
+    <div class="status-dot" id="conn-dot"></div>
+    <span id="conn-label">ONLINE</span>
+  </div>
+</header>
+
+<!-- ── Layout ─────────────────────────────── -->
+<div class="layout">
+
+  <!-- 左：技能列表 -->
+  <div class="panel" id="skills-panel">
+    <div class="panel-header">SKILLS</div>
+    <div class="panel-content" id="skills-list">
+      <div style="color:var(--text-dim);font-size:11px;padding:8px;">加载中...</div>
+    </div>
+  </div>
+
+  <!-- 中：对话 -->
+  <div class="panel" id="chat-panel">
+    <div class="processing-bar hidden" id="proc-bar"></div>
+
+    <div id="messages">
+      <div class="empty-hint">
+        <div class="big">⚡</div>
+        <p>kcz 已就绪</p>
+        <p style="font-size:11px;color:var(--text-dim)">输入问题，或点击左侧 Skill 直接调用</p>
+      </div>
+    </div>
+
+    <div class="input-area">
+      <textarea id="user-input" rows="1" placeholder="输入指令... (Shift+Enter 换行，Enter 发送)"></textarea>
+      <button id="send-btn">SEND ▶</button>
+    </div>
+  </div>
+
+  <!-- 右：日志 -->
+  <div class="panel" id="log-panel" style="position:relative;">
+    <div class="panel-header">
+      <span>RUNTIME LOG</span>
+      <button id="clear-logs">CLR</button>
+    </div>
+    <div id="log-content">
+      <div class="log-line info">// kcz 运行日志</div>
+      <div class="log-line info">// 所有 print() 输出将实时显示在此</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+// 工具
+// ══════════════════════════════════════════════
+const $ = id => document.getElementById(id);
+
+const messagesEl = $('messages');
+const logEl      = $('log-content');
+const inputEl    = $('user-input');
+const sendBtn    = $('send-btn');
+const procBar    = $('proc-bar');
+
+let isProcessing = false;
+
+// ── 日志着色规则 ──────────────────────────────
+function logClass(text) {
+  if (/\[ScriptRunner\] 原始输出/i.test(text))              return 'raw';
+  if (/^\s*[\{\[\"]|^\s*"[\w]+"\s*:/i.test(text))           return 'raw';  // JSON 行
+  if (/✓|✅|加载完成|成功|online/i.test(text))              return 'success';
+  if (/⚠|warn|警告|失败|❌/i.test(text))                    return 'warn';
+  if (/error|错误|exception/i.test(text))                    return 'error';
+  if (/\[kcz\].*匹配|选中|意图/i.test(text))          return 'skill';
+  if (/\[kcz\].*参数|提取/i.test(text))               return 'param';
+  if (/\[kcz\]|\[ScriptRunner\]|\[SkillRegistry\]/i.test(text)) return 'action';
+  return 'info';
+}
+
+function appendLog(text) {
+  const line = document.createElement('div');
+  line.className = `log-line ${logClass(text)}`;
+  // 高亮方括号标签
+  line.innerHTML = text
+    .replace(/(\[[\w]+\])/g, '<span style="opacity:.6">$1</span>')
+    .replace(/(✓|✅)/g, '<span style="color:var(--green)">$1</span>')
+    .replace(/(⚠|❌)/g, '<span style="color:var(--red)">$1</span>');
+  logEl.appendChild(line);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+// ══════════════════════════════════════════════
+// 富文本渲染器
+// ══════════════════════════════════════════════
+
+/* 尝试从字符串中提取 JSON（兼容前后有杂文本的情况） */
+function tryParseJSON(str) {
+  const m = str.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
+  if (!m) return null;
+  try { return JSON.parse(m[1]); } catch { return null; }
+}
+
+/* JSON 对象 → 美化 HTML */
+function jsonToHTML(obj, depth) {
+  depth = depth || 0;
+  if (Array.isArray(obj)) {
+    // 数组且元素全是对象 → 表格
+    if (obj.length > 0 && typeof obj[0] === 'object' && obj[0] !== null && !Array.isArray(obj[0])) {
+      const keys = Object.keys(obj[0]);
+      const rows = obj.map(item =>
+        `<tr>${keys.map(k => `<td>${escapeHtml(String(item[k] ?? ''))}</td>`).join('')}</tr>`
+      ).join('');
+      return `<table class="data-table"><thead><tr>${keys.map(k=>`<th>${escapeHtml(k)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table>`;
+    }
+    // 普通数组
+    return `<ul class="data-list">${obj.map(v=>`<li>${jsonToHTML(v, depth+1)}</li>`).join('')}</ul>`;
+  }
+  if (typeof obj === 'object' && obj !== null) {
+    // 浅层对象（顶层或嵌套一层）→ 卡片列表
+    const entries = Object.entries(obj);
+    // 如果 value 全是基础类型 → 键值网格
+    if (entries.every(([,v]) => typeof v !== 'object' || v === null)) {
+      return `<div class="kv-grid">${entries.map(([k,v]) => `
+        <div class="kv-item">
+          <span class="kv-key">${escapeHtml(k)}</span>
+          <span class="kv-val">${escapeHtml(String(v))}</span>
+        </div>`).join('')}</div>`;
+    }
+    // 混合 → 分段展示
+    return entries.map(([k, v]) => {
+      if (typeof v === 'object' && v !== null) {
+        return `<div class="data-section"><div class="data-section-title">${escapeHtml(k)}</div>${jsonToHTML(v, depth+1)}</div>`;
+      }
+      return `<div class="kv-grid"><div class="kv-item"><span class="kv-key">${escapeHtml(k)}</span><span class="kv-val">${escapeHtml(String(v))}</span></div></div>`;
+    }).join('');
+  }
+  return `<span>${escapeHtml(String(obj))}</span>`;
+}
+
+/* Markdown 简化渲染（标题、粗体、行内代码、代码块、有序/无序列表、分割线） */
+function renderMarkdown(md) {
+  let html = escapeHtml(md);                                          // 先转义
+  // 代码块
+  html = html.replace(/```[\w]*\n?([\s\S]*?)```/g,
+    (_, code) => `<pre class="code-block">${code.trim()}</pre>`);
+  // 行内代码
+  html = html.replace(/`([^`]+)`/g, `<code class="inline-code">$1</code>`);
+  // 标题
+  html = html.replace(/^### (.+)$/gm, '<h4 class="md-h4">$1</h4>');
+  html = html.replace(/^## (.+)$/gm,  '<h3 class="md-h3">$1</h3>');
+  html = html.replace(/^# (.+)$/gm,   '<h2 class="md-h2">$1</h2>');
+  // 粗体 / 斜体
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/\*(.+?)\*/g,     '<em>$1</em>');
+  // 分割线
+  html = html.replace(/^---+$/gm, '<hr class="md-hr">');
+  // 无序列表（连续行）
+  html = html.replace(/(^[-•] .+$(\n^[-•] .+$)*)/gm, match => {
+    const items = match.split('\n').map(l => `<li>${l.replace(/^[-•] /,'')}</li>`).join('');
+    return `<ul class="md-list">${items}</ul>`;
+  });
+  // 有序列表
+  html = html.replace(/(^\d+\. .+$(\n^\d+\. .+$)*)/gm, match => {
+    const items = match.split('\n').map(l => `<li>${l.replace(/^\d+\. /,'')}</li>`).join('');
+    return `<ol class="md-list">${items}</ol>`;
+  });
+  // 换行
+  html = html.replace(/\n/g, '<br>');
+  // 引用文档徽章
+  html = html.replace(/📄 \*\*引用文档\*\*: (.*?)(?:<br>|$)/g, (_, refs) => {
+    const badges = refs.split('·').map(r => {
+      const name = r.trim().replace(/`/g, '');
+      return `<span class="ref-badge">📄 ${name}</span>`;
+    }).join(' ');
+    return `<div class="ref-footer">${badges}</div>`;
+  });
+  return html;
+}
+
+/* 主渲染函数：自动识别 JSON / Markdown / 纯文本 */
+function renderAnswer(raw) {
+  // 1. 纯 JSON
+  const trimmed = raw.trim();
+  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+    const obj = tryParseJSON(trimmed);
+    if (obj) return jsonToHTML(obj);
+  }
+  // 2. 文本中含内嵌 JSON 块
+  const jsonMatch = raw.match(/```json\s*([\s\S]*?)```/);
+  if (jsonMatch) {
+    const obj = tryParseJSON(jsonMatch[1]);
+    if (obj) {
+      const before = raw.slice(0, jsonMatch.index);
+      const after  = raw.slice(jsonMatch.index + jsonMatch[0].length);
+      return renderMarkdown(before) + jsonToHTML(obj) + renderMarkdown(after);
+    }
+  }
+  // 3. Markdown / 纯文本
+  return renderMarkdown(raw);
+}
+
+// ── 消息渲染 ─────────────────────────────────
+function clearEmptyHint() {
+  const hint = messagesEl.querySelector('.empty-hint');
+  if (hint) hint.remove();
+}
+
+function appendUserMsg(text) {
+  clearEmptyHint();
+  const msg = document.createElement('div');
+  msg.className = 'msg user';
+  msg.innerHTML = `
+    <div class="msg-label">YOU</div>
+    <div class="msg-bubble">${escapeHtml(text)}</div>`;
+  messagesEl.appendChild(msg);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function createBotMsg() {
+  clearEmptyHint();
+  const msg = document.createElement('div');
+  msg.className = 'msg bot';
+  const bubble = document.createElement('div');
+  bubble.className = 'msg-bubble typing-cursor';
+  msg.innerHTML = `<div class="msg-label">kcz</div>`;
+  msg.appendChild(bubble);
+  messagesEl.appendChild(msg);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+  return bubble;
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ══════════════════════════════════════════════
+// 加载技能列表
+// ══════════════════════════════════════════════
+async function loadSkills() {
+  try {
+    const res = await fetch('/api/skills');
+    const skills = await res.json();
+    const list = $('skills-list');
+    list.innerHTML = '';
+    skills.forEach(s => {
+      const card = document.createElement('div');
+      card.className = 'skill-card';
+      card.innerHTML = `
+        <div class="skill-name">${escapeHtml(s.name)}</div>
+        <div class="skill-desc">${escapeHtml(s.description)}</div>`;
+      card.addEventListener('click', () => {
+        inputEl.value = `@${s.name} `;
+        inputEl.focus();
+      });
+      list.appendChild(card);
+    });
+    appendLog(`✓ 已加载 ${skills.length} 个 Skill`);
+  } catch(e) {
+    appendLog(`⚠ 技能列表加载失败: ${e.message}`);
+  }
+}
+
+// ══════════════════════════════════════════════
+// 发送消息
+// ══════════════════════════════════════════════
+async function sendMessage() {
+  const text = inputEl.value.trim();
+  if (!text || isProcessing) return;
+
+  isProcessing = true;
+  sendBtn.disabled = true;
+  procBar.classList.remove('hidden');
+  inputEl.value = '';
+  inputEl.style.height = '42px';
+
+  appendUserMsg(text);
+  appendLog(`> ${text}`);
+
+  const bubble = createBotMsg();
+
+  try {
+    const resp = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: text }),
+    });
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+    let answer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+
+      const parts = buf.split('\n\n');
+      buf = parts.pop();            // 最后一段可能不完整
+
+      for (const part of parts) {
+        if (!part.trim() || part.startsWith(':')) continue;  // 心跳
+        const lines = part.split('\n');
+        let event = 'message', data = '';
+        for (const l of lines) {
+          if (l.startsWith('event: ')) event = l.slice(7).trim();
+          if (l.startsWith('data: '))  data  = l.slice(6);
+        }
+        // 还原换行
+        data = data.replace(/\\n/g, '\n');
+
+        if (event === 'log') {
+          appendLog(data);
+        } else if (event === 'done') {
+          answer = data;
+        } else if (event === 'error') {
+          appendLog(`❌ ${data}`);
+          answer = `❌ 执行出错：${data}`;
+        }
+      }
+    }
+
+    bubble.classList.remove('typing-cursor');
+    bubble.innerHTML = renderAnswer(escapeHtml(answer));
+
+  } catch(e) {
+    bubble.classList.remove('typing-cursor');
+    bubble.textContent = `❌ 网络错误: ${e.message}`;
+    appendLog(`❌ 网络错误: ${e.message}`);
+  } finally {
+    isProcessing = false;
+    sendBtn.disabled = false;
+    procBar.classList.add('hidden');
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+    // 重置输入框高度并聚焦，防止输入框消失
+    inputEl.style.height = '42px';
+    inputEl.focus();
+  }
+}
+
+// ══════════════════════════════════════════════
+// 交互绑定
+// ══════════════════════════════════════════════
+sendBtn.addEventListener('click', sendMessage);
+
+inputEl.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+});
+
+function autoResize() {
+  inputEl.style.height = 'auto';
+  inputEl.style.height = Math.max(42, Math.min(inputEl.scrollHeight, 120)) + 'px';
+}
+inputEl.addEventListener('input', autoResize);
+
+$('clear-logs').addEventListener('click', () => {
+  logEl.innerHTML = '<div class="log-line info">// 日志已清空</div>';
+});
+
+// ══════════════════════════════════════════════
+// 启动
+// ══════════════════════════════════════════════
+loadSkills();
+</script>
+</body>
+</html>

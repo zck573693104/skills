@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>DeepAgent · ReAct Intelligence</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@300;400;600;700&display=swap');
+
+:root {
+  --bg:        #050d1a;
+  --bg2:       #0a1628;
+  --bg3:       #0d1f38;
+  --border:    #1a3a5c;
+  --cyan:      #00d4ff;
+  --cyan2:     #00a8cc;
+  --green:     #00ff88;
+  --yellow:    #ffd700;
+  --red:       #ff4466;
+  --purple:    #bb88ff;
+  --orange:    #ffaa44;
+  --text:      #c8e0f4;
+  --text-dim:  #5a7a9a;
+  --glow:      0 0 12px #00d4ff55;
+  --glow-g:    0 0 10px #00ff8844;
+  --glow-p:    0 0 10px #bb88ff44;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Exo 2', sans-serif;
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0;
+  background-image:
+    linear-gradient(rgba(0,212,255,.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,212,255,.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  animation: grid-drift 25s linear infinite;
+  pointer-events: none;
+}
+@keyframes grid-drift { to { background-position: 40px 40px; } }
+
+/* ── Header ─────────────────────────────── */
+header {
+  position: relative; z-index: 10;
+  flex-shrink: 0;
+  display: flex; align-items: center; gap: 16px;
+  padding: 12px 24px;
+  background: linear-gradient(90deg, #020c1b 0%, #061428 60%, #020c1b 100%);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 2px 20px #00d4ff22;
+}
+
+.logo {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 20px;
+  color: var(--purple);
+  text-shadow: var(--glow-p);
+  letter-spacing: 3px;
+}
+.logo span { color: var(--cyan); }
+
+.tagline {
+  font-size: 11px; color: var(--text-dim);
+  letter-spacing: 2px; text-transform: uppercase;
+}
+
+.header-right {
+  margin-left: auto;
+  display: flex; align-items: center; gap: 16px;
+}
+
+.header-status {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; color: var(--text-dim);
+}
+
+.status-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--green);
+  box-shadow: var(--glow-g);
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
+
+.step-counter {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px;
+  color: var(--purple);
+  background: #1a0a30;
+  border: 1px solid #3a1a60;
+  border-radius: 4px;
+  padding: 3px 10px;
+  letter-spacing: 1px;
+}
+
+/* ── Layout ─────────────────────────────── */
+.layout {
+  position: relative; z-index: 1;
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 200px 1fr 300px 300px;
+  overflow: hidden;
+}
+
+/* ── Panel 通用 ─────────────────────────── */
+.panel {
+  display: flex; flex-direction: column;
+  border-right: 1px solid var(--border);
+  background: var(--bg2);
+  overflow: hidden;
+  min-height: 0;
+}
+.panel:last-child { border-right: none; }
+
+.panel-header {
+  padding: 9px 14px;
+  background: var(--bg3);
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  font-family: 'Share Tech Mono', monospace;
+  color: var(--cyan);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  display: flex; align-items: center; gap: 8px;
+  flex-shrink: 0;
+}
+.panel-header::before {
+  content: '';
+  display: inline-block;
+  width: 3px; height: 14px;
+  background: var(--cyan);
+  box-shadow: var(--glow);
+  border-radius: 2px;
+}
+.panel-header.purple-accent { color: var(--purple); }
+.panel-header.purple-accent::before { background: var(--purple); box-shadow: var(--glow-p); }
+.panel-header.log-accent { color: var(--green); }
+.panel-header.log-accent::before { background: var(--green); box-shadow: var(--glow-g); }
+
+/* ── 左：技能列表 ─────────────────────── */
+#skills-panel .panel-content {
+  flex: 1; overflow-y: auto; padding: 10px 8px;
+}
+
+.skill-card {
+  padding: 9px 11px;
+  margin-bottom: 5px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  cursor: pointer;
+  transition: all .2s;
+  position: relative; overflow: hidden;
+}
+.skill-card::before {
+  content: '';
+  position: absolute; left: 0; top: 0; bottom: 0;
+  width: 3px; background: var(--purple); opacity: 0;
+  transition: opacity .2s;
+}
+.skill-card:hover { border-color: var(--purple); background: #120820; }
+.skill-card:hover::before { opacity: 1; }
+.skill-name {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px; color: var(--purple); margin-bottom: 3px;
+}
+.skill-name::before { content: '@'; color: var(--text-dim); }
+.skill-desc { font-size: 10px; color: var(--text-dim); line-height: 1.4;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* ── 中：对话区 ─────────────────────────── */
+#chat-panel { min-height: 0; overflow: hidden; }
+
+#messages {
+  flex: 1; min-height: 0; overflow-y: auto;
+  padding: 18px 16px;
+  display: flex; flex-direction: column; gap: 14px;
+}
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--cyan2); }
+
+.msg {
+  max-width: 88%;
+  display: flex; flex-direction: column; gap: 4px;
+  animation: msg-in .2s ease-out;
+}
+@keyframes msg-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+.msg.user { align-self: flex-end; align-items: flex-end; }
+.msg.bot  { align-self: flex-start; align-items: flex-start; }
+
+.msg-label { font-size: 10px; color: var(--text-dim); font-family: 'Share Tech Mono', monospace; letter-spacing: 1px; }
+
+.msg-bubble {
+  padding: 11px 15px; border-radius: 8px;
+  font-size: 13px; line-height: 1.7;
+  word-break: break-word; overflow-wrap: break-word;
+}
+.msg.user .msg-bubble {
+  white-space: pre-wrap;
+  background: linear-gradient(135deg, #1a0a30, #0a1228);
+  border: 1px solid #6633bb;
+  color: var(--text); box-shadow: var(--glow-p);
+}
+.msg.bot .msg-bubble {
+  background: var(--bg3); border: 1px solid var(--border); color: var(--text);
+}
+
+/* 追问气泡 */
+.msg.clarify .msg-bubble {
+  background: linear-gradient(135deg, #1a1200, #0a0c00);
+  border: 1px solid var(--yellow);
+  color: var(--yellow);
+}
+
+.typing-cursor::after { content: '▋'; color: var(--purple); animation: blink .7s step-end infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+
+/* 输入区 */
+.input-area {
+  flex-shrink: 0; padding: 12px 14px;
+  background: var(--bg3); border-top: 1px solid var(--border);
+  display: flex; gap: 10px; align-items: flex-end;
+}
+#user-input {
+  flex: 1; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 6px; color: var(--text);
+  font-family: 'Exo 2', sans-serif; font-size: 13px;
+  padding: 10px 13px; resize: none; outline: none;
+  transition: border-color .2s, box-shadow .2s;
+  max-height: 110px; min-height: 42px;
+}
+#user-input:focus { border-color: var(--purple); box-shadow: var(--glow-p); }
+#user-input::placeholder { color: var(--text-dim); }
+
+#send-btn {
+  background: linear-gradient(135deg, #7733cc, #5522aa);
+  color: #fff; border: none; border-radius: 6px;
+  padding: 10px 18px;
+  font-family: 'Share Tech Mono', monospace; font-size: 12px;
+  cursor: pointer; letter-spacing: 1px; transition: all .2s;
+  white-space: nowrap; flex-shrink: 0;
+}
+#send-btn:hover:not(:disabled) { background: linear-gradient(135deg, #9944ee, #7733cc); box-shadow: var(--glow-p); }
+#send-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+.processing-bar {
+  height: 2px;
+  background: linear-gradient(90deg, var(--purple), var(--cyan), var(--purple));
+  background-size: 200% 100%;
+  animation: shimmer 1s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes shimmer { to { background-position: -200% 0; } }
+.processing-bar.hidden { display: none; }
+
+/* ── ReAct 步骤面板 ────────────────────── */
+#react-panel { background: #060e1c; }
+#react-steps {
+  flex: 1; min-height: 0; overflow-y: auto;
+  padding: 10px 10px;
+}
+
+.react-step {
+  margin-bottom: 10px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  animation: step-in .2s ease-out;
+}
+@keyframes step-in { from { opacity:0; transform:translateX(8px); } to { opacity:1; transform:translateX(0); } }
+
+.react-step-header {
+  padding: 6px 10px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px; letter-spacing: 1px;
+  display: flex; align-items: center; gap: 8px;
+}
+.react-step-body {
+  padding: 6px 10px 8px;
+  font-size: 11px; line-height: 1.6;
+  color: var(--text-dim);
+  background: var(--bg);
+  word-break: break-all;
+}
+
+/* 不同类型步骤 */
+.react-step.thought   .react-step-header { background: #1a1030; color: var(--purple); border-bottom: 1px solid #3a1a60; }
+.react-step.action    .react-step-header { background: #0a2040; color: var(--cyan); border-bottom: 1px solid #1a4060; }
+.react-step.observe   .react-step-header { background: #0a2010; color: var(--green); border-bottom: 1px solid #1a4020; }
+.react-step.skill     .react-step-header { background: #201020; color: var(--purple); border-bottom: 1px solid #401840; }
+.react-step.param     .react-step-header { background: #201410; color: var(--orange); border-bottom: 1px solid #402810; }
+.react-step.warn      .react-step-header { background: #201800; color: var(--yellow); border-bottom: 1px solid #403000; }
+
+.react-step-icon { font-size: 13px; }
+
+.step-badge {
+  margin-left: auto;
+  font-size: 9px; color: var(--text-dim);
+  background: #0a1628; border: 1px solid var(--border);
+  border-radius: 3px; padding: 1px 6px;
+}
+
+/* ── 日志面板 ───────────────────────────── */
+#log-panel { background: #030b17; }
+#log-panel .panel-header { justify-content: space-between; }
+#clear-logs {
+  font-size: 10px; color: var(--text-dim); background: none;
+  border: 1px solid var(--border); border-radius: 3px; padding: 2px 8px;
+  cursor: pointer; font-family: 'Share Tech Mono', monospace; transition: all .15s;
+}
+#clear-logs:hover { color: var(--red); border-color: var(--red); }
+
+#log-content {
+  flex: 1; overflow-y: auto;
+  padding: 8px 10px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px; line-height: 1.65;
+}
+
+.log-line {
+  padding: 1px 0;
+  border-bottom: 1px solid #0a1628;
+  animation: log-in .1s ease-out;
+  word-break: break-all;
+}
+@keyframes log-in { from { opacity:0; background:#00d4ff11; } to { opacity:1; background:transparent; } }
+
+.log-line.info    { color: var(--text-dim); }
+.log-line.success { color: var(--green); }
+.log-line.warn    { color: var(--yellow); }
+.log-line.error   { color: var(--red); }
+.log-line.action  { color: var(--cyan); }
+.log-line.skill   { color: var(--purple); }
+.log-line.param   { color: var(--orange); }
+.log-line.react   { color: #88ccff; }
+.log-line.raw     { color: #4dbb7a; font-size: 9px; opacity: .8; }
+
+/* ── 富文本渲染 ────────────────────────── */
+.data-table { width:100%; border-collapse:collapse; margin:8px 0; font-size:12px; font-family:'Share Tech Mono',monospace; }
+.data-table th { background:#0a2040; color:var(--cyan); padding:6px 10px; text-align:left; font-weight:600; border-bottom:1px solid var(--cyan2); white-space:nowrap; }
+.data-table td { padding:6px 10px; border-bottom:1px solid #0d1f38; color:var(--text); }
+.data-table tr:hover td { background:#0a1e38; }
+.data-table tr:last-child td { border-bottom:none; }
+
+.kv-grid { display:flex; flex-wrap:wrap; gap:5px; margin:6px 0; }
+.kv-item { display:flex; align-items:baseline; gap:5px; background:#081525; border:1px solid var(--border); border-radius:4px; padding:4px 9px; min-width:120px; }
+.kv-key { font-family:'Share Tech Mono',monospace; font-size:10px; color:var(--cyan); white-space:nowrap; }
+.kv-val { font-size:13px; color:var(--green); font-weight:600; }
+
+.code-block { background:#030b17; border:1px solid var(--border); border-left:3px solid var(--cyan); border-radius:4px; padding:8px 12px; font-family:'Share Tech Mono',monospace; font-size:11px; color:#8ecaf0; white-space:pre-wrap; margin:6px 0; overflow-x:auto; }
+.inline-code { background:#0a1e38; border:1px solid var(--border); border-radius:3px; padding:1px 5px; font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--cyan); }
+.md-h2 { font-size:15px; color:var(--cyan); margin:10px 0 5px; border-bottom:1px solid var(--border); padding-bottom:3px; }
+.md-h3 { font-size:13px; color:var(--cyan2); margin:8px 0 4px; }
+.md-h4 { font-size:12px; color:var(--yellow); margin:6px 0 3px; }
+.md-hr { border:none; border-top:1px solid var(--border); margin:8px 0; }
+.md-list { margin:5px 0 5px 16px; line-height:1.8; font-size:13px; }
+.md-list li { margin-bottom:2px; }
+
+.empty-hint { margin:auto; text-align:center; color:var(--text-dim); font-size:13px; }
+.empty-hint .big { font-size:40px; margin-bottom:12px; }
+
+.react-empty { padding:20px; text-align:center; color:var(--text-dim); font-size:11px; font-family:'Share Tech Mono',monospace; }
+
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">DEEP<span>AGENT</span></div>
+    <div class="tagline">ReAct · Think → Act → Observe</div>
+  </div>
+  <div class="header-right">
+    <div class="step-counter" id="step-counter">STEP 0</div>
+    <div class="header-status">
+      <div class="status-dot" id="conn-dot"></div>
+      <span id="conn-label">READY</span>
+    </div>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- 左：技能列表 -->
+  <div class="panel" id="skills-panel">
+    <div class="panel-header">SKILLS</div>
+    <div class="panel-content" id="skills-list">
+      <div style="color:var(--text-dim);font-size:11px;padding:8px;">加载中...</div>
+    </div>
+  </div>
+
+  <!-- 中：对话 -->
+  <div class="panel" id="chat-panel">
+    <div class="processing-bar hidden" id="proc-bar"></div>
+    <div id="messages">
+      <div class="empty-hint">
+        <div class="big">🧠</div>
+        <p>DeepAgent 已就绪</p>
+        <p style="font-size:11px;color:var(--text-dim)">基于 ReAct 循环动态推理 · 支持多轮追问</p>
+      </div>
+    </div>
+    <div class="input-area">
+      <textarea id="user-input" rows="1" placeholder="输入任务... (Shift+Enter 换行，Enter 发送)"></textarea>
+      <button id="send-btn">RUN ▶</button>
+    </div>
+  </div>
+
+  <!-- ReAct 步骤 -->
+  <div class="panel" id="react-panel">
+    <div class="panel-header purple-accent">REACT CHAIN</div>
+    <div id="react-steps">
+      <div class="react-empty">// 思考链将实时显示</div>
+    </div>
+  </div>
+
+  <!-- 日志 -->
+  <div class="panel" id="log-panel">
+    <div class="panel-header log-accent">
+      <span>RUNTIME LOG</span>
+      <button id="clear-logs">CLR</button>
+    </div>
+    <div id="log-content">
+      <div class="log-line info">// DeepAgent 运行日志</div>
+      <div class="log-line info">// 所有 print() 输出将实时显示</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+// 工具
+// ═══════════════════════════════════════════════
+const $ = id => document.getElementById(id);
+const messagesEl  = $('messages');
+const logEl       = $('log-content');
+const reactEl     = $('react-steps');
+const inputEl     = $('user-input');
+const sendBtn     = $('send-btn');
+const procBar     = $('proc-bar');
+const stepCounter = $('step-counter');
+
+let isProcessing = false;
+let stepCount = 0;
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── 日志着色 ───────────────────────────────────
+function logClass(text) {
+  if (/\[ReAct\]/i.test(text))                                            return 'react';
+  if (/\[ScriptRunner\].*原始输出/i.test(text))                           return 'raw';
+  if (/^\s*[\{\[\"]|^\s*"[\w]+":/i.test(text))                           return 'raw';
+  if (/✓|✅|成功|online/i.test(text))                                     return 'success';
+  if (/⚠|warn|警告|失败|❌/i.test(text))                                   return 'warn';
+  if (/error|错误|exception|traceback/i.test(text))                        return 'error';
+  if (/\[SkillTool\].*调用|选中/i.test(text))                             return 'skill';
+  if (/\[SkillTool\].*参数|提取/i.test(text))                             return 'param';
+  if (/\[SkillTool\]|\[ScriptRunner\]|\[DeepAgent\]|\[SkillRegistry\]/i.test(text)) return 'action';
+  return 'info';
+}
+
+function appendLog(text) {
+  const line = document.createElement('div');
+  line.className = `log-line ${logClass(text)}`;
+  line.innerHTML = escapeHtml(text)
+    .replace(/(\[[\w]+\])/g, '<span style="opacity:.55">$1</span>')
+    .replace(/(✓|✅)/g, '<span style="color:var(--green)">$1</span>')
+    .replace(/(⚠|❌)/g, '<span style="color:var(--red)">$1</span>');
+  logEl.appendChild(line);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+// ── ReAct 步骤渲染 ────────────────────────────
+const REACT_TYPE_META = {
+  step:        { cls:'action',  icon:'⚡', label:'STEP'        },
+  reasoning:   { cls:'thought', icon:'🧠', label:'THOUGHT'     },
+  observation: { cls:'observe', icon:'👁', label:'OBSERVE'     },
+  skill_call:  { cls:'skill',   icon:'🔧', label:'SKILL CALL'  },
+  script:      { cls:'skill',   icon:'📜', label:'SCRIPT'      },
+  params:      { cls:'param',   icon:'⚙', label:'PARAMS'      },
+  agent:       { cls:'action',  icon:'🤖', label:'AGENT'       },
+  warn:        { cls:'warn',    icon:'⚠', label:'WARN'        },
+};
+
+function appendReactStep(rtype, text, raw) {
+  // 清除空提示
+  const empty = reactEl.querySelector('.react-empty');
+  if (empty) empty.remove();
+
+  const meta = REACT_TYPE_META[rtype] || { cls:'action', icon:'•', label: rtype.toUpperCase() };
+
+  // STEP 类型更新计数器
+  if (rtype === 'step') {
+    const m = text.match(/(\d+)/);
+    if (m) {
+      stepCount = parseInt(m[1]);
+      stepCounter.textContent = `STEP ${stepCount}`;
+    }
+  }
+
+  const div = document.createElement('div');
+  div.className = `react-step ${meta.cls}`;
+
+  const nowStr = new Date().toLocaleTimeString('zh-CN', { hour12: false, hour:'2-digit', minute:'2-digit', second:'2-digit' });
+
+  div.innerHTML = `
+    <div class="react-step-header">
+      <span class="react-step-icon">${meta.icon}</span>
+      <span>${meta.label}</span>
+      <span class="step-badge">${nowStr}</span>
+    </div>
+    <div class="react-step-body">${escapeHtml(text)}</div>`;
+
+  reactEl.appendChild(div);
+  reactEl.scrollTop = reactEl.scrollHeight;
+}
+
+// ── 富文本渲染 ────────────────────────────────
+function tryParseJSON(str) {
+  const m = str.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
+  if (!m) return null;
+  try { return JSON.parse(m[1]); } catch { return null; }
+}
+
+function jsonToHTML(obj, depth) {
+  depth = depth || 0;
+  if (Array.isArray(obj)) {
+    if (obj.length > 0 && typeof obj[0] === 'object' && obj[0] !== null && !Array.isArray(obj[0])) {
+      const keys = Object.keys(obj[0]);
+      const rows = obj.map(item =>
+        `<tr>${keys.map(k => `<td>${escapeHtml(String(item[k] ?? ''))}</td>`).join('')}</tr>`
+      ).join('');
+      return `<table class="data-table"><thead><tr>${keys.map(k=>`<th>${escapeHtml(k)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table>`;
+    }
+    return `<ul class="md-list">${obj.map(v=>`<li>${jsonToHTML(v,depth+1)}</li>`).join('')}</ul>`;
+  }
+  if (typeof obj === 'object' && obj !== null) {
+    const entries = Object.entries(obj);
+    if (entries.every(([,v]) => typeof v !== 'object' || v === null)) {
+      return `<div class="kv-grid">${entries.map(([k,v]) =>
+        `<div class="kv-item"><span class="kv-key">${escapeHtml(k)}</span><span class="kv-val">${escapeHtml(String(v))}</span></div>`
+      ).join('')}</div>`;
+    }
+    return entries.map(([k,v]) => {
+      if (typeof v === 'object' && v !== null) {
+        return `<div style="margin:8px 0"><div style="font-size:11px;color:var(--yellow);letter-spacing:1px;margin-bottom:4px;text-transform:uppercase">${escapeHtml(k)}</div>${jsonToHTML(v,depth+1)}</div>`;
+      }
+      return `<div class="kv-grid"><div class="kv-item"><span class="kv-key">${escapeHtml(k)}</span><span class="kv-val">${escapeHtml(String(v))}</span></div></div>`;
+    }).join('');
+  }
+  return `<span>${escapeHtml(String(obj))}</span>`;
+}
+
+function renderMarkdown(md) {
+  let html = escapeHtml(md);
+  html = html.replace(/```[\w]*\n?([\s\S]*?)```/g, (_, code) => `<pre class="code-block">${code.trim()}</pre>`);
+  html = html.replace(/`([^`]+)`/g, `<code class="inline-code">$1</code>`);
+  html = html.replace(/^### (.+)$/gm, '<h4 class="md-h4">$1</h4>');
+  html = html.replace(/^## (.+)$/gm,  '<h3 class="md-h3">$1</h3>');
+  html = html.replace(/^# (.+)$/gm,   '<h2 class="md-h2">$1</h2>');
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/\*(.+?)\*/g,     '<em>$1</em>');
+  html = html.replace(/^---+$/gm, '<hr class="md-hr">');
+  html = html.replace(/(^[-•] .+$(\n^[-•] .+$)*)/gm, match => {
+    const items = match.split('\n').map(l => `<li>${l.replace(/^[-•] /,'')}</li>`).join('');
+    return `<ul class="md-list">${items}</ul>`;
+  });
+  html = html.replace(/(^\d+\. .+$(\n^\d+\. .+$)*)/gm, match => {
+    const items = match.split('\n').map(l => `<li>${l.replace(/^\d+\. /,'')}</li>`).join('');
+    return `<ol class="md-list">${items}</ol>`;
+  });
+  html = html.replace(/\n/g, '<br>');
+  return html;
+}
+
+function renderAnswer(raw) {
+  const trimmed = raw.trim();
+  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+    const obj = tryParseJSON(trimmed);
+    if (obj) return jsonToHTML(obj);
+  }
+  const jsonMatch = raw.match(/```json\s*([\s\S]*?)```/);
+  if (jsonMatch) {
+    const obj = tryParseJSON(jsonMatch[1]);
+    if (obj) {
+      const before = raw.slice(0, jsonMatch.index);
+      const after  = raw.slice(jsonMatch.index + jsonMatch[0].length);
+      return renderMarkdown(before) + jsonToHTML(obj) + renderMarkdown(after);
+    }
+  }
+  return renderMarkdown(raw);
+}
+
+// ── 消息渲染 ──────────────────────────────────
+function clearEmptyHint() {
+  const hint = messagesEl.querySelector('.empty-hint');
+  if (hint) hint.remove();
+}
+
+function appendUserMsg(text) {
+  clearEmptyHint();
+  const msg = document.createElement('div');
+  msg.className = 'msg user';
+  msg.innerHTML = `<div class="msg-label">YOU</div><div class="msg-bubble">${escapeHtml(text)}</div>`;
+  messagesEl.appendChild(msg);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function createBotMsg(label, extraClass) {
+  clearEmptyHint();
+  const msg = document.createElement('div');
+  msg.className = `msg bot${extraClass ? ' ' + extraClass : ''}`;
+  const bubble = document.createElement('div');
+  bubble.className = 'msg-bubble typing-cursor';
+  msg.innerHTML = `<div class="msg-label">${label || 'DEEPAGENT'}</div>`;
+  msg.appendChild(bubble);
+  messagesEl.appendChild(msg);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+  return bubble;
+}
+
+// ── 加载技能 ──────────────────────────────────
+async function loadSkills() {
+  try {
+    const res = await fetch('/api/skills');
+    const skills = await res.json();
+    const list = $('skills-list');
+    list.innerHTML = '';
+    skills.forEach(s => {
+      const card = document.createElement('div');
+      card.className = 'skill-card';
+      card.innerHTML = `<div class="skill-name">${escapeHtml(s.name)}</div><div class="skill-desc">${escapeHtml(s.description)}</div>`;
+      card.addEventListener('click', () => { inputEl.value = `@${s.name} `; inputEl.focus(); });
+      list.appendChild(card);
+    });
+    appendLog(`✓ 已加载 ${skills.length} 个 Skill`);
+  } catch(e) {
+    appendLog(`⚠ 技能列表加载失败: ${e.message}`);
+  }
+}
+
+// ── 发送消息 ──────────────────────────────────
+async function sendMessage() {
+  const text = inputEl.value.trim();
+  if (!text || isProcessing) return;
+
+  isProcessing = true;
+  sendBtn.disabled = true;
+  procBar.classList.remove('hidden');
+  inputEl.value = '';
+  inputEl.style.height = '42px';
+  stepCount = 0;
+  stepCounter.textContent = 'STEP 0';
+
+  appendUserMsg(text);
+  appendLog(`>>> ${text}`);
+
+  // 清空 ReAct 面板
+  reactEl.innerHTML = '<div class="react-empty">// 推理中...</div>';
+
+  const bubble = createBotMsg('DEEPAGENT');
+
+  try {
+    const resp = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: text }),
+    });
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+    let answer = '';
+    let isClarify = false;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+
+      const parts = buf.split('\n\n');
+      buf = parts.pop();
+
+      for (const part of parts) {
+        if (!part.trim() || part.startsWith(':')) continue;
+        const lines = part.split('\n');
+        let event = 'message', data = '';
+        for (const l of lines) {
+          if (l.startsWith('event: ')) event = l.slice(7).trim();
+          if (l.startsWith('data: '))  data  = l.slice(6);
+        }
+        data = data.replace(/\\n/g, '\n');
+
+        if (event === 'log') {
+          appendLog(data);
+        } else if (event === 'react') {
+          try {
+            const obj = JSON.parse(data);
+            appendReactStep(obj.type, obj.text, obj.raw);
+          } catch {}
+        } else if (event === 'answer') {
+          answer = data;
+        } else if (event === 'clarify') {
+          try {
+            const obj = JSON.parse(data);
+            answer = obj.question || data;
+            isClarify = true;
+          } catch { answer = data; isClarify = true; }
+        } else if (event === 'error') {
+          appendLog(`❌ ${data}`);
+          answer = `❌ 执行出错：${data}`;
+        } else if (event === 'done') {
+          // 结束
+        }
+      }
+    }
+
+    bubble.classList.remove('typing-cursor');
+    if (isClarify) {
+      // 追问气泡换样式
+      bubble.closest('.msg').classList.add('clarify');
+      bubble.innerHTML = `⚠ ${renderMarkdown(answer)}`;
+    } else {
+      bubble.innerHTML = renderAnswer(answer);
+    }
+
+  } catch(e) {
+    bubble.classList.remove('typing-cursor');
+    bubble.textContent = `❌ 网络错误: ${e.message}`;
+    appendLog(`❌ 网络错误: ${e.message}`);
+  } finally {
+    isProcessing = false;
+    sendBtn.disabled = false;
+    procBar.classList.add('hidden');
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+    inputEl.style.height = '42px';
+    inputEl.focus();
+  }
+}
+
+// ── 交互绑定 ──────────────────────────────────
+sendBtn.addEventListener('click', sendMessage);
+inputEl.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+});
+inputEl.addEventListener('input', () => {
+  inputEl.style.height = 'auto';
+  inputEl.style.height = Math.max(42, Math.min(inputEl.scrollHeight, 110)) + 'px';
+});
+$('clear-logs').addEventListener('click', () => {
+  logEl.innerHTML = '<div class="log-line info">// 日志已清空</div>';
+});
+
+loadSkills();
+</script>
+</body>
+</html>

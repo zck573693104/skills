@@ -1,6 +1,6 @@
 ---
 name: weather-gd
-description：通过城市名称获取实时天气信息（使用高德地图API）
+description: 通过城市名称获取实时天气信息（使用高德地图API）
 ---
 
 
