@@ -114,11 +114,19 @@ class Memory:
             lines.append(f"{prefix}: {m.content[:300]}")
         return "\n".join(lines)
 
-    def short_term_text(self) -> str:
-        """格式化本轮步骤链"""
+    def short_term_text(self, max_length: int = None) -> str:
+        """
+        格式化本轮步骤链
+        
+        Args:
+            max_length: 最大长度限制，None 表示不限制（返回完整数据）
+        """
         lines = []
         for m in self.short_term:
-            lines.append(f"[{m.role}] {m.content}")
+            content = m.content
+            if max_length and len(content) > max_length:
+                content = content[:max_length] + "... [内容过长已截断]"
+            lines.append(f"[{m.role}] {content}")
         return "\n".join(lines)
     
     def _save_persistent_memory(self):
@@ -266,7 +274,7 @@ class SkillTool:
 
     def _answer_with_content(self, instruction: str, detail: SkillDetail) -> str:
         from workbuddy import llm_chat
-        md_body = re.sub(r"^---.*?---\n", "", detail.full_content, flags=re.DOTALL)[:2000]
+        md_body = re.sub(r"^---.*?---\n", "", detail.full_content, flags=re.DOTALL)[:100000]
         prompt = f"请基于以下文档回答问题。\n\n{md_body}\n\n问题：{instruction}"
         return llm_chat(self.llm, prompt)
     
@@ -334,7 +342,8 @@ class ReActLoop:
         self._step_count += 1
         skills_summary = self.registry.summary_for_llm()
         history = self.memory.long_term_text()
-        steps_so_far = self.memory.short_term_text()
+        # 获取完整的步骤链（不截断），让 LLM 看到完整数据
+        steps_so_far = self.memory.short_term_text(max_length=None)
 
         prompt = f"""你是一个智能 Agent，通过 ReAct 循环完成用户任务。
 
@@ -371,6 +380,8 @@ class ReActLoop:
 - 如果上一步 Skill 已返回结果，优先基于结果作答，不要重复调用同一 Skill
 - 如果 Skill 执行失败，尝试换参数重试或换其他 Skill，最多重试 2 次
 - 只有真正缺少关键信息时才 ask_user，不要频繁追问
+- **重要**：当 Skill 返回详细数据（如报价、车型列表）时，必须在 final_answer 中完整展示所有关键信息，不得省略或截断
+- **重要**：对于物流报价，必须列出所有可用车型的详细信息（尺寸、容积、限重、价格、适用场景）
 
 输出："""
 
@@ -411,12 +422,15 @@ class ReActLoop:
             
             if result.success:
                 self._consecutive_failures = 0  # 重置失败计数
-                self.memory.add_short("Observation", f"Skill={skill_name}: {obs[:500]}")
-                print(f"[ReAct] Observation: {obs[:200]}...")
+                # Memory 中存储摘要（节省空间），但返回完整数据给用户
+                obs_summary = obs[:10000] if len(obs) > 10000 else obs
+                self.memory.add_short("Observation", f"Skill={skill_name}: {obs_summary}")
+                print(f"[ReAct] Observation: {obs[:10000]}...")
             else:
                 self._consecutive_failures += 1
-                self.memory.add_short("Observation", f"[失败] Skill={skill_name}: {obs[:500]}")
-                print(f"[ReAct] Observation (失败): {obs[:200]}...")
+                obs_summary = obs[:10000] if len(obs) > 10000 else obs
+                self.memory.add_short("Observation", f"[失败] Skill={skill_name}: {obs_summary}")
+                print(f"[ReAct] Observation (失败): {obs[:10000]}...")
                 
                 # 如果连续失败 3 次，强制结束并给出建议
                 if self._consecutive_failures >= 3:
@@ -424,6 +438,7 @@ class ReActLoop:
                     self._done = True
                     return self._final_answer
             
+            # 返回完整的 Observation 数据（不截断）
             return obs
 
         else:
@@ -530,7 +545,7 @@ class DeepAgent:
         self._loop = ReActLoop(self.llm, self.registry, self.tool, self.memory)
 
         result = self._run_loop(user_input)
-        self.memory.add_long("assistant", result[:500])
+        self.memory.add_long("assistant", result[:10000])
         return result
 
     def _run_loop(self, user_input: str) -> str:
