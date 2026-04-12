@@ -111,7 +111,7 @@ header {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 200px 1fr 300px 300px;
+  grid-template-columns: 200px 1fr 300px;
   overflow: hidden;
 }
 
@@ -220,6 +220,70 @@ header {
 }
 .msg.bot .msg-bubble {
   background: var(--bg3); border: 1px solid var(--border); color: var(--text);
+}
+
+/* 日志折叠区域 */
+.msg-log-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  margin-top: 8px;
+  background: #0a1628;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+  font-family: 'Share Tech Mono', monospace;
+  color: var(--cyan);
+  transition: all .2s;
+  user-select: none;
+}
+.msg-log-toggle:hover {
+  background: #0d1f38;
+  border-color: var(--cyan);
+  box-shadow: var(--glow);
+}
+.msg-log-toggle .toggle-icon {
+  font-size: 10px;
+  transition: transform .2s;
+}
+.msg-log-toggle.collapsed .toggle-icon {
+  transform: rotate(-90deg);
+}
+.msg-log-toggle .toggle-text {
+  flex: 1;
+}
+.msg-log-toggle .toggle-count {
+  font-size: 10px;
+  color: var(--text-dim);
+  background: var(--bg);
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.msg-log-content {
+  margin-bottom: 8px;
+  background: #030b17;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  max-height: 400px;
+  overflow-y: auto;
+  transition: max-height .3s ease, opacity .3s ease, margin .3s ease;
+}
+.msg-log-content.collapsed {
+  max-height: 0;
+  opacity: 0;
+  margin-bottom: 0;
+  overflow: hidden;
+  padding: 0;
+  border-width: 0;
+}
+.msg-log-content .log-line {
+  padding: 3px 10px;
+  font-size: 10px;
+  line-height: 1.6;
+  border-bottom: 1px solid #0a1628;
 }
 
 /* 追问气泡 */
@@ -430,18 +494,6 @@ header {
     </div>
   </div>
 
-  <!-- 日志 -->
-  <div class="panel" id="log-panel">
-    <div class="panel-header log-accent">
-      <span>RUNTIME LOG</span>
-      <button id="clear-logs">CLR</button>
-    </div>
-    <div id="log-content">
-      <div class="log-line info">// DeepAgent 运行日志</div>
-      <div class="log-line info">// 所有 print() 输出将实时显示</div>
-    </div>
-  </div>
-
 </div>
 
 <script>
@@ -450,7 +502,6 @@ header {
 // ═══════════════════════════════════════════════
 const $ = id => document.getElementById(id);
 const messagesEl  = $('messages');
-const logEl       = $('log-content');
 const reactEl     = $('react-steps');
 const inputEl     = $('user-input');
 const sendBtn     = $('send-btn');
@@ -459,6 +510,7 @@ const stepCounter = $('step-counter');
 
 let isProcessing = false;
 let stepCount = 0;
+let currentMsgLogs = [];  // 当前消息的日志集合
 
 function escapeHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -479,14 +531,38 @@ function logClass(text) {
 }
 
 function appendLog(text) {
-  const line = document.createElement('div');
-  line.className = `log-line ${logClass(text)}`;
-  line.innerHTML = escapeHtml(text)
-    .replace(/(\[[\w]+\])/g, '<span style="opacity:.55">$1</span>')
-    .replace(/(✓|✅)/g, '<span style="color:var(--green)">$1</span>')
-    .replace(/(⚠|❌)/g, '<span style="color:var(--red)">$1</span>');
-  logEl.appendChild(line);
-  logEl.scrollTop = logEl.scrollHeight;
+  // 只收集到当前消息的日志中（用于后续渲染）
+  if (isProcessing) {
+    currentMsgLogs.push({ text, className: logClass(text) });
+    
+    // 实时更新当前消息的日志区域（如果已存在）
+    updateLiveLogs();
+  }
+}
+
+// 实时更新日志显示
+let currentBubble = null;
+let currentLogContent = null;
+
+function updateLiveLogs() {
+  if (!currentLogContent || currentMsgLogs.length === 0) return;
+  
+  // 清空现有内容
+  currentLogContent.innerHTML = '';
+  
+  // 添加所有日志行
+  currentMsgLogs.forEach(log => {
+    const line = document.createElement('div');
+    line.className = `log-line ${log.className}`;
+    line.innerHTML = escapeHtml(log.text)
+      .replace(/(\[[\w]+\])/g, '<span style="opacity:.55">$1</span>')
+      .replace(/(✓|✅)/g, '<span style="color:var(--green)">$1</span>')
+      .replace(/(⚠|❌)/g, '<span style="color:var(--red)">$1</span>');
+    currentLogContent.appendChild(line);
+  });
+  
+  // 自动滚动到底部
+  currentLogContent.scrollTop = currentLogContent.scrollHeight;
 }
 
 // ── ReAct 步骤渲染 ────────────────────────────
@@ -672,12 +748,18 @@ async function sendMessage() {
   stepCounter.textContent = 'STEP 0';
 
   appendUserMsg(text);
-  appendLog(`>>> ${text}`);
 
-  // 清空 ReAct 面板
+  // 清空 ReAct 面板和当前日志集合
   reactEl.innerHTML = '<div class="react-empty">// 推理中...</div>';
+  currentMsgLogs = [];
 
   const bubble = createBotMsg('DEEPAGENT');
+  
+  // 预先创建日志区域（实时更新）
+  const msgEl = bubble.closest('.msg');
+  currentLogContent = document.createElement('div');
+  currentLogContent.className = 'msg-log-content';  // 默认展开
+  msgEl.insertBefore(currentLogContent, bubble.nextSibling);
 
   try {
     const resp = await fetch('/api/chat', {
@@ -742,6 +824,39 @@ async function sendMessage() {
     } else {
       bubble.innerHTML = renderAnswer(answer);
     }
+    
+    // 添加折叠按钮（日志区域已存在）
+    if (currentMsgLogs.length > 0 && currentLogContent) {
+      const msgEl = bubble.closest('.msg');
+      const toggle = document.createElement('div');
+      toggle.className = 'msg-log-toggle';
+      toggle.innerHTML = `
+        <span class="toggle-icon">▼</span>
+        <span class="toggle-text">Runtime Log (${currentMsgLogs.length} lines)</span>
+        <span class="toggle-count">点击展开/收起</span>
+      `;
+      
+      // 点击切换展开/收起
+      toggle.addEventListener('click', () => {
+        const isCollapsed = currentLogContent.classList.contains('collapsed');
+        if (isCollapsed) {
+          currentLogContent.classList.remove('collapsed');
+          toggle.classList.remove('collapsed');
+          toggle.querySelector('.toggle-text').textContent = `Runtime Log (${currentMsgLogs.length} lines)`;
+        } else {
+          currentLogContent.classList.add('collapsed');
+          toggle.classList.add('collapsed');
+          toggle.querySelector('.toggle-text').textContent = `Runtime Log (${currentMsgLogs.length} lines) - 已收起`;
+        }
+      });
+      
+      // 在日志区域后添加折叠按钮
+      msgEl.insertBefore(toggle, currentLogContent.nextSibling);
+    }
+    
+    // 清空引用（准备下一条消息）
+    currentLogContent = null;
+    currentMsgLogs = [];
 
   } catch(e) {
     bubble.classList.remove('typing-cursor');
@@ -765,9 +880,6 @@ inputEl.addEventListener('keydown', e => {
 inputEl.addEventListener('input', () => {
   inputEl.style.height = 'auto';
   inputEl.style.height = Math.max(42, Math.min(inputEl.scrollHeight, 110)) + 'px';
-});
-$('clear-logs').addEventListener('click', () => {
-  logEl.innerHTML = '<div class="log-line info">// 日志已清空</div>';
 });
 
 loadSkills();
