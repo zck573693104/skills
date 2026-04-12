@@ -1,5 +1,5 @@
 """
-WorkBuddy - 智能 Skill 执行引擎
+WorkBuddy - 智能 Skill 执行引擎 (v2.0)
 ==============================
 架构：
   1. SkillRegistry   - 扫描并注册所有 skill（Level-1 元数据）
@@ -10,6 +10,12 @@ WorkBuddy - 智能 Skill 执行引擎
   4. ParamExtractor  - 大模型从 SKILL.md + 用户输入中自动提取脚本参数
   5. ScriptRunner    - 执行脚本并返回结果
   6. WorkBuddy       - 主入口，串联全流程（单步/多步自动切换）
+
+核心特性：
+  ✓ 静态规划：提前分析任务，生成执行计划
+  ✓ 多步编排：支持多个 Skill 协作完成任务
+  ✓ 结果传递：上一步输出可作为下一步输入
+  ✓ 渐进式披露：按需加载 Skill 内容，节省 Token
 """
 
 
@@ -91,17 +97,22 @@ log_collector = LogCollector()
 # ─────────────────────────────────────────────
 # LLM 工厂
 # ─────────────────────────────────────────────
-def make_llm() -> ChatOpenAI:
+def make_llm(model: str = "deepseek-reasoner", temperature: float = 0.7) -> ChatOpenAI:
+    """创建 LLM 实例"""
     return ChatOpenAI(
-        model="deepseek-reasoner",
+        model=model,
         api_key=os.getenv('AI_KEY'),
         base_url="https://api.heabl.top/v1",
-        temperature=0.7,
+        temperature=temperature,
     )
 
 
-def llm_chat(llm: ChatOpenAI, prompt: str) -> str:
-    return llm.invoke(prompt).content.strip()
+def llm_chat(llm: ChatOpenAI, prompt: str, max_tokens: int = None) -> str:
+    """调用 LLM 并返回结果"""
+    kwargs = {}
+    if max_tokens:
+        kwargs['max_tokens'] = max_tokens
+    return llm.invoke(prompt, **kwargs).content.strip()
 
 
 # ─────────────────────────────────────────────
@@ -741,7 +752,7 @@ class WorkBuddy:
     # ── 内部方法 ────────────────────────────────────────────────
 
     def _run_single_skill(self, skill_name: str, instruction: str) -> str:
-        """执行单个 Skill 的完整流程"""
+        """执行单个 Skill 的完整流程（优化版：简化日志输出）"""
         meta = self.registry.get(skill_name)
         if not meta:
             return f"Skill '{skill_name}' 未找到"
@@ -749,7 +760,6 @@ class WorkBuddy:
         print(f"\n[WorkBuddy] 匹配到 Skill: {skill_name}")
 
         # L2 + L3: 渐进式披露
-        print(f"[WorkBuddy] 加载 Skill 详情 (L2/L3)...")
         detail = self.disclosure.load(meta)
 
         if not detail.scripts:
@@ -760,10 +770,10 @@ class WorkBuddy:
         script = self.selector.select(instruction, detail.scripts, detail)
         if not script:
             return self._answer_with_content(instruction, detail)
+        
         print(f"[WorkBuddy] 选中脚本: {script.path.name}")
 
         # L4: 参数提取 + 执行
-        print(f"[WorkBuddy] 提取参数: {script.path.name}")
         params = self.extractor.extract(instruction, script, detail)
         print(f"[WorkBuddy] 提取到参数: {params}")
 
@@ -771,13 +781,8 @@ class WorkBuddy:
         if missing:
             return f"缺少必填参数: {', '.join(missing)}，请补充后重试。"
 
-        print(f"[WorkBuddy] 执行脚本: {script.path.name}")
         ok, output = self.runner.run(script, params)
-
-        if ok:
-            return output
-        else:
-            return f"❌ {script.path.name} 执行失败:\n{output}"
+        return output if ok else f"❌ {script.path.name} 执行失败:\n{output}"
 
     def _run_multi_steps(self, user_input: str, steps: List[SkillStep]) -> str:
         """
@@ -797,11 +802,8 @@ class WorkBuddy:
                     instruction = instruction.replace(placeholder, results[dep_idx])
 
             print(f"\n[WorkBuddy] ── 步骤 {i+1}/{len(steps)}: {step.skill_name} ──")
-            print(f"[WorkBuddy] 指令: {instruction[:100]}...")
-
             result = self._run_single_skill(step.skill_name, instruction)
             results[i] = result
-            print(f"[WorkBuddy] 步骤 {i+1} 完成，输出长度: {len(result)} 字符")
 
         # 汇总：让 LLM 整合所有步骤结果，生成最终回答
         steps_summary = "\n\n".join(

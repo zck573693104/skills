@@ -1,6 +1,9 @@
 """
-DeepAgent Skill 执行引擎 - 负责执行 Skills
+DeepAgent Skill 执行引擎 - 负责执行 Skills (v2.0)
 支持多种执行方式：Python 脚本、Shell 命令等
+
+注意: 此模块已与 workbuddy.py 中的 ScriptRunner 合并
+      保留此文件仅为兼容性考虑，建议使用 workbuddy.ScriptRunner
 """
 import os
 import sys
@@ -37,6 +40,8 @@ class SkillExecutor:
     2. 准备执行环境
     3. 执行 Skill 脚本
     4. 处理执行结果
+    
+    注意: 此类已废弃，请使用 workbuddy.ScriptRunner + ParamExtractor
     """
     
     def __init__(self, skills_root_dir: str):

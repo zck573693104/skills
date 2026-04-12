@@ -1,0 +1,84 @@
+{
+  "long_term": [
+    {
+      "role": "user",
+      "content": "上海到北京物流价格   今天的热搜信息"
+    },
+    {
+      "role": "assistant",
+      "content": "## 上海到北京物流价格（整车）\n- **4.2米厢车**：总价 4104 元（基础价3800 + 燃油附加304）\n- **9.6米厢车**：总价 7020 元（基础价6500 + 燃油附加520）\n- 其他车型（如13米、17.5米等）报价暂未获取到，建议直接咨询物流公司。\n\n## 今天（2026-04-11）的热搜信息\n仅检索到部分内容：\n- “元宇宙”概念持续升温，因Facebook更名Meta后成为关注焦点，网友讨论其对互联网未来及生活工作的影响。\n\n> 注：完整热搜榜单未能从公开搜索中获取，以上信息仅供参考。"
+    }
+  ],
+  "episodic": [
+    {
+      "timestamp": "2026-04-11T23:09:51.273056",
+      "type": "skill_execution",
+      "data": {
+        "skill": "logistics-sales-agent",
+        "script": "quote.py",
+        "params": {
+          "from": "上海",
+          "to": "北京",
+          "type": "both"
+        },
+        "success": true
+      }
+    },
+    {
+      "timestamp": "2026-04-11T23:10:19.498693",
+      "type": "skill_execution",
+      "data": {
+        "skill": "baidu-search",
+        "script": "search.py",
+        "params": {
+          "query": "2026年4月11日 百度热搜榜",
+          "count": 20,
+          "freshness": "pd"
+        },
+        "success": true
+      }
+    },
+    {
+      "timestamp": "2026-04-11T23:10:49.966199",
+      "type": "skill_execution",
+      "data": {
+        "skill": "logistics-sales-agent",
+        "script": "quote.py",
+        "params": {
+          "from": "上海",
+          "to": "北京",
+          "type": "both"
+        },
+        "success": true
+      }
+    },
+    {
+      "timestamp": "2026-04-11T23:11:12.994707",
+      "type": "skill_execution",
+      "data": {
+        "skill": "baidu-search",
+        "script": "search.py",
+        "params": {
+          "query": "百度热搜榜 2026年4月11日",
+          "count": 15,
+          "freshness": "2026-04-11to2026-04-11"
+        },
+        "success": true
+      }
+    },
+    {
+      "timestamp": "2026-04-11T23:11:38.205213",
+      "type": "skill_execution",
+      "data": {
+        "skill": "baidu-search",
+        "script": "search.py",
+        "params": {
+          "query": "今日热搜榜 2026-04-11",
+          "count": 20,
+          "freshness": "2026-04-11to2026-04-11"
+        },
+        "success": true
+      }
+    }
+  ]
+}

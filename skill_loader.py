@@ -1,6 +1,9 @@
 """
-DeepAgent Skill 加载器 - 动态加载和管理 Skills
+DeepAgent Skill 加载器 - 动态加载和管理 Skills (v2.0)
 基于 LangChain DeepAgents 框架的 Skill 系统实现
+
+注意: 此模块已与 workbuddy.py 中的 SkillRegistry 合并
+      保留此文件仅为兼容性考虑，建议使用 workbuddy.SkillRegistry
 """
 import os
 import re
@@ -121,6 +124,8 @@ class SkillLoader:
     - Level 2: 加载完整的 SKILL.md 内容
     - Level 3: 加载参考资料和资源文件
     - Level 4: 分析上下文并准备执行脚本
+    
+    注意: 此类已废弃，请使用 workbuddy.SkillRegistry + SkillDisclosure
     """
     
     def __init__(self, skills_root_dir: str):
